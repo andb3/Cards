@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">Cards</string>
+
+    <!--Category Names-->
+    <string name="category_food">Food</string>
+    <string name="category_transport">Transportation</string>
+    <string name="category_other">Other</string>
+    <string name="add_expense_title">Add Expense</string>
+    <string name="categories_title">Categories</string>
+</resources>
