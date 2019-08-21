@@ -1,75 +1,79 @@
 package com.andb.apps.cards.repository
 
+import android.util.Log
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.Transformations
 import com.andb.apps.cards.objects.*
+import com.andb.apps.cards.utils.newIoThread
 import kotlin.random.Random
 
 object CardRepo {
-    private val card0 = Card(1, "Visa", Money(50.00), type = CARD_TYPE_GENERIC, expenses = arrayListOf(Expense(0, EXPENSE_TYPE_FOOD, Money(19.59), 1), Expense(1, EXPENSE_TYPE_OTHER, Money(15.00), 1)))
-    private val card1 = Card(0, "Amazon", Money(25.00), type = CARD_TYPE_GIFT)
-    private val card2 = Card(2, "Best Buy", Money(30.00), type = CARD_TYPE_GIFT)
-    private val card3 = Card(3, "Google Play", Money(15.00), type = CARD_TYPE_GIFT)
 
-
-    val cards = ListLiveData(listOf(card0, card1, card2, card3))
+    val cards = cardsDao().getCards()
     var currentCard = DefaultLiveData(0)
 
-    val card = DefaultLiveData(cards[currentCard.value])
-        .also { ld->
-        ld.addSource(currentCard){
-            ld.value = cards[it]
-        }
-        ld.addSource(cards){
-            ld.value = it[currentCard.value]
+    val card = Transformations.switchMap(currentCard) { current ->
+        Log.d("liveDataCheck", "currentCard switchMap")
+        return@switchMap Transformations.map(cards) { cardList ->
+            Log.d("liveDataCheck", "cards map")
+            return@map cardList[current]
+/*            return@switchMap Transformations.map(expensesDao().getExpensesFromParent(base.id)){ expenses->
+                val new = Card(base.id, base.name, base.amount, expenses, base.type)
+                return@map
+            }*/
         }
     }
 
-    fun addExpense(expense: Expense, pos: Int? = null){
+    val expenses = Transformations.switchMap(card) { expensesDao().getExpensesFromParent(it.id) }
+
+    fun addExpense(expense: Expense, pos: Int? = null) {
         if (pos != null) {
-            cards[currentCard.value].expenses.add(pos, expense)
-        }else{
-/*            val alreadyIndex = cards[currentCard.value].expenses.indexOfFirst{it.id == expense.id}
-            Log.d("addExpense", "alreadyIndex: $alreadyIndex")
-            if(alreadyIndex > -1){
-                cards[currentCard.value].expenses[alreadyIndex] = expense
-            }else{*/
-                cards[currentCard.value].expenses.add(expense)
-            /*}*/
-        }
-        cards.refresh()
-    }
-
-    fun editExpense(expense: Expense){
-        cards.value.forEach { card->
-            val index = card.expenses.indexOfFirst { it.id == expense.id }
-            if(index > -1){
-                card.expenses[index] = expense
+            expenses.value?.forEach {
+                if (it.index >= pos) {
+                    it.index++
+                    editExpense(it)
+                }
+            }
+            expense.index = pos
+            newIoThread {
+                expensesDao().insertExpense(expense)
+            }
+        } else {
+            expense.index = expenses.value?.size ?: 0
+            newIoThread {
+                expensesDao().insertExpense(expense)
             }
         }
-        cards.refresh()
     }
 
-    fun removeExpense(expense: Expense){
-        cards[currentCard.value].expenses.remove(expense)
-        cards.refresh()
+    fun editExpense(expense: Expense) {
+        newIoThread {
+            expensesDao().updateExpense(expense)
+        }
     }
 
-    fun findExpenseByID(id: Int): Expense?{
-        return cards.value.flatMap { it.expenses }.find { it.id == id }
+    fun removeExpense(expense: Expense) {
+        newIoThread {
+            expensesDao().deleteExpense(expense)
+        }
     }
 
-    fun generateID(): Int{
-        val keyList: List<Int> = cards.value.map { it.id } + cards.value.flatMap { it.expenses.map { expense ->  expense.id } }
+    fun findExpenseByID(id: Int): Expense? {
+        return expenses.value?.find { it.id == id }
+    }
+
+    fun generateID(): Int {
+        val keyList: List<Int> = (cards.value?.map { it.id } ?: listOf()) + (expenses.value?.map { it.id } ?: listOf())
         var random = Random.nextInt()
-        while (keyList.contains(random)){
+        while (keyList.contains(random)) {
             random = Random.nextInt()
         }
         return random
     }
 }
 
-open class DefaultLiveData<T>(val initialValue: T): MediatorLiveData<T>(){
+open class DefaultLiveData<T>(val initialValue: T) : MediatorLiveData<T>() {
     override fun getValue(): T {
         return super.getValue() ?: initialValue
     }
@@ -82,11 +86,11 @@ open class ListLiveData<T>(initialList: List<T> = emptyList()) : MediatorLiveDat
     val size
         get() = backingList.size
 
-    operator fun get(pos: Int): T{
+    operator fun get(pos: Int): T {
         return backingList[pos]
     }
 
-    fun set(pos: Int, item: T){
+    fun set(pos: Int, item: T) {
         backingList[pos] = item
         postValue(backingList)
     }
@@ -117,8 +121,8 @@ open class ListLiveData<T>(initialList: List<T> = emptyList()) : MediatorLiveDat
     }
 
     fun drop(by: Int) {
-        for(i in 0 until by){
-            backingList.removeAt(backingList.size-i)
+        for (i in 0 until by) {
+            backingList.removeAt(backingList.size - i)
         }
         postValue(backingList)
     }

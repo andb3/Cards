@@ -11,7 +11,7 @@ class AddExpenseViewModel : ViewModel() {
     var id = CardRepo.generateID()
     var amount = Money(0.00)
     var category: Int = EXPENSE_TYPE_OTHER
-    var parentID: Int = CardRepo.card.value.id
+    var parentID: Int = CardRepo.card.value?.id ?: 0
     var editing = false
 
     fun isEmpty(): Boolean = amount.value.setScale(2, RoundingMode.HALF_UP).toDouble()==0.00

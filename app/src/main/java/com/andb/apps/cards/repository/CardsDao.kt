@@ -19,4 +19,8 @@ interface CardsDao {
     @Query("SELECT * FROM BaseCard")
     fun getCards(): LiveData<List<BaseCard>>
 
+    @Query("SELECT * FROM BaseCard")
+    fun getCardsDead(): List<BaseCard>
+
+
 }

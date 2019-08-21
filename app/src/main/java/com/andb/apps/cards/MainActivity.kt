@@ -1,20 +1,21 @@
 package com.andb.apps.cards
 
+import android.content.Context
+import android.content.SharedPreferences
 import android.os.Bundle
-import android.util.Log
 import android.util.TypedValue
 import android.view.View
 import android.widget.ImageButton
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import androidx.fragment.app.FragmentTransaction
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.andb.apps.cards.objects.Card
 import com.andb.apps.cards.repository.CardRepo
 import com.github.rongi.klaster.Klaster
 import com.google.android.material.bottomsheet.BottomSheetBehavior
@@ -30,8 +31,6 @@ class MainActivity : AppCompatActivity() {
         ViewModelProviders.of(this).get(MainActivityViewModel::class.java)
     }
 
-    var card: Card = CardRepo.cards[0]
-
     private val cardAdapter: RecyclerView.Adapter<RecyclerView.ViewHolder> by lazy { cardAdapter() }
 
     private val behavior by lazy {
@@ -46,16 +45,18 @@ class MainActivity : AppCompatActivity() {
             }
     }
 
+    private val prefs by lazy { getSharedPreferences("Persist", Context.MODE_PRIVATE) }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.navigationBarColor = ContextCompat.getColor(this, R.color.colorPrimaryDark)
         setContentView(R.layout.activity_main)
 
         CardRepo.card.observe(this as LifecycleOwner, Observer {
-            Log.d("cardObserve", "card changed to ${card.name}")
-            this.card = it
             refreshBottomBar()
         })
+
+        CardRepo.currentCard.value = prefs.getInt("currentCard", 0)
 
         addExpenseFAB.setOnClickListener {
             showAddExpenseFragment()
@@ -107,10 +108,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun cardAdapter() = Klaster.get()
-        .itemCount { CardRepo.cards.size }
+        .itemCount { CardRepo.cards.value?.size ?: 0 }
         .view(R.layout.card_item, layoutInflater)
         .bind { pos ->
-            val card = CardRepo.cards[pos]
+            val card = CardRepo.cards.value?.get(pos) ?: return@bind
             itemView.apply {
                 cardItemIcon.setImageResource(card.getDrawableID())
                 cardItemName.text = card.name
@@ -121,6 +122,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 setOnClickListener {
                     CardRepo.currentCard.value = pos
+                    prefs.edit { putInt("currentCard", pos) }
                 }
             }
         }
@@ -132,7 +134,7 @@ class MainActivity : AppCompatActivity() {
         behavior.state = BottomSheetBehavior.STATE_HIDDEN
     }
 
-    private fun showBottomBar() {
+    fun showBottomBar() {
         behavior.skipCollapsed = false
         behavior.isHideable = false
         behavior.state = BottomSheetBehavior.STATE_COLLAPSED
@@ -155,9 +157,8 @@ private fun Toolbar.getToolbarNavigationButton(): ImageButton? {
     for (i in 0 until size) {
         val child = getChildAt(i)
         if (child is ImageButton) {
-            val btn = child as ImageButton
-            if (btn.drawable === navigationIcon) {
-                return btn
+            if (child.drawable === navigationIcon) {
+                return child
             }
         }
     }

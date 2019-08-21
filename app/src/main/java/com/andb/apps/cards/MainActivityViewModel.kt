@@ -3,9 +3,7 @@ package com.andb.apps.cards
 import android.os.Bundle
 import androidx.lifecycle.ViewModel
 
-class MainActivityViewModel : ViewModel() {
-
-}
+class MainActivityViewModel : ViewModel()
 
 fun <T> listOfGeneric(size: Int, apply: (Int)->T): List<T>{
     val start = mutableListOf<T>()

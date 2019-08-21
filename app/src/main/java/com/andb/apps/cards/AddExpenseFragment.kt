@@ -63,7 +63,8 @@ class AddExpenseFragment : Fragment() {
         addExpenseDone.setOnClickListener {
             if(!viewModel.isEmpty()){
                 viewModel.save()
-                this.requireActivity().supportFragmentManager.popBackStack()
+                requireActivity().supportFragmentManager.popBackStack()
+                (activity as MainActivity).showBottomBar()
             }
         }
 

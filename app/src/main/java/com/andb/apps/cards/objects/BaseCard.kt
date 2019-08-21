@@ -3,7 +3,6 @@ package com.andb.apps.cards.objects
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import androidx.room.TypeConverters
 import com.andb.apps.cards.R
 
 @Entity
@@ -13,7 +12,6 @@ open class BaseCard(
     val id: Int,
     @ColumnInfo(name = "card_name")
     var name: String,
-    @TypeConverters(MoneyTypeConverter::class)
     @ColumnInfo(name = "card_amount")
     var amount: Money,
     @ColumnInfo(name = "card_type")

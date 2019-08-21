@@ -12,7 +12,10 @@ import androidx.core.content.ContextCompat
 import android.widget.TextView
 import androidx.annotation.ColorInt
 import android.widget.EditText
-
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 
 fun dpToPx(dp: Int): Int {
@@ -26,28 +29,14 @@ fun <T> LiveData<T>.observe(lifecycleOwner: LifecycleOwner, observer: (T)->Unit)
     })
 }
 
-fun EditText.setCursorColor(@ColorInt color: Int) {
-    try {
-        // Get the cursor resource id
-        var field = TextView::class.java.getDeclaredField("mCursorDrawableRes")
-        field.isAccessible = true
-        val drawableResId = field.getInt(this)
+fun newIoThread(block: suspend CoroutineScope.()->Unit){
+    CoroutineScope(Dispatchers.IO).launch(block = block)
+}
 
-        // Get the editor
-        field = TextView::class.java.getDeclaredField("mEditor")
-        field.isAccessible = true
-        val editor = field.get(this)
+suspend fun mainThread(block: suspend CoroutineScope.() -> Unit){
+    withContext(Dispatchers.Main, block)
+}
 
-        // Get the drawable and set a color filter
-        val drawable = ContextCompat.getDrawable(context, drawableResId)
-        drawable!!.setColorFilter(color, PorterDuff.Mode.SRC_IN)
-        val drawables = arrayOf(drawable, drawable)
-
-        // Set the drawables
-        field = editor.javaClass.getDeclaredField("mCursorDrawable")
-        field.isAccessible = true
-        field.set(editor, drawables)
-    } catch (ignored: Exception) {
-    }
-
+suspend fun ioThread(block: suspend CoroutineScope.() -> Unit){
+    withContext(Dispatchers.IO, block)
 }

@@ -8,7 +8,7 @@ const val EXPENSE_TYPE_FOOD = 101
 const val EXPENSE_TYPE_TRANSPORT = 102
 
 @Entity(foreignKeys = [ForeignKey(entity = BaseCard::class,
-    parentColumns = ["expense_id"],
+    parentColumns = ["card_id"],
     childColumns = ["expense_parentID"],
     onDelete = ForeignKey.CASCADE)])
 data class Expense(
@@ -17,11 +17,12 @@ data class Expense(
     val id: Int,
     @ColumnInfo(name = "expense_type")
     var type: Int,
-    @TypeConverters(MoneyTypeConverter::class)
     @ColumnInfo(name = "expense_amount")
     var amount: Money,
-    @ColumnInfo(name = "expense_parentID")
-    val parentID: Int) {
+    @ColumnInfo(name = "expense_parentID", index = true)
+    val parentID: Int,
+    @ColumnInfo(name = "expense_index")
+    var index: Int = -1) {
 
     fun typeIconRes(): Int {
         return typeIconRes(type)

@@ -3,18 +3,19 @@ package com.andb.apps.cards
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.graphics.Color
-import androidx.lifecycle.ViewModelProviders
 import android.os.Bundle
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
+import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProviders
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.andb.apps.cards.objects.Expense
 import com.andb.apps.cards.objects.Money
+import com.andb.apps.cards.objects.sumBy
 import com.andb.apps.cards.repository.CardRepo
 import com.andb.apps.cards.utils.SwipeStep
 import com.andb.apps.cards.utils.observe
@@ -32,43 +33,47 @@ class ExpenseFragment : Fragment() {
 
     var name: String = ""
     var cardId = -1
-    var balance: Money = Money(0.00)
     var total: Money = Money(0.00)
     private var expenses: List<Expense> = listOf()
     private var iconRes: Int = R.drawable.ic_card_generic_black_24dp
+    private var animateRVNext: Boolean = true
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
                               savedInstanceState: Bundle?): View? {
         viewModel = ViewModelProviders.of(this).get(ExpenseFragmentViewModel::class.java)
-        viewModel.card.observe(viewLifecycleOwner){
+        viewModel.card.observe(viewLifecycleOwner) {
+            animateRVNext = true
             name = it.name
-            balance = it.balance()
             total = it.amount
             iconRes = it.getDrawableID()
 
             refreshBalance()
             refreshCard()
-
-            if (it.id == cardId) {//diffutil
-                val diff = DiffUtil.calculateDiff(ExpenseDiffCallback(expenses, it.expenses))
-                expenses = it.expenses.toList()
-                diff.dispatchUpdatesTo(expenseAdapter)
-            } else {
-                expenses = it.expenses.toList()
-                expenseAdapter.notifyDataSetChanged()
-                expenseRecycler.scheduleLayoutAnimation()
-            }
             cardId = it.id
 
         }
-/*        viewModel.expenses.observe(viewLifecycleOwner){
+        viewModel.expenses.observe(viewLifecycleOwner) { newExpenses ->
 
-        }*/
+            val sorted = newExpenses.sortedBy { it.index }
+
+            if (animateRVNext) {//diffutil
+                expenses = sorted.toList()
+                expenseAdapter.notifyDataSetChanged()
+                expenseRecycler.scheduleLayoutAnimation()
+                animateRVNext = false
+            } else {
+                val diff = DiffUtil.calculateDiff(ExpenseDiffCallback(expenses, sorted))
+                expenses = sorted.toList()
+                diff.dispatchUpdatesTo(expenseAdapter)
+            }
+
+            refreshBalance()
+        }
 
         return inflater.inflate(R.layout.expense_fragment, container, false)
     }
 
-
+    private fun balance() = total - expenses.sumBy { it.amount }
 
     class ExpenseDiffCallback(private val oldList: List<Expense>, private val newList: List<Expense>) :
         DiffUtil.Callback() {
@@ -100,12 +105,8 @@ class ExpenseFragment : Fragment() {
                         icon = ContextCompat.getDrawable(context, R.drawable.ic_edit_black_24dp)
                         side = SwipeStep.SIDE_VIEW
                         action = { pos ->
-                            (activity as MainActivity).apply {
-                                val id = card.expenses[pos].id
-                                showAddExpenseFragment(id)
-                            }
-
-
+                            val expenseID = expenses[pos].id
+                            (activity as MainActivity).showAddExpenseFragment(expenseID)
                         }
                     }
                     endStep {
@@ -129,10 +130,10 @@ class ExpenseFragment : Fragment() {
 
     private fun refreshBalance() {
 
-        expenseCurrentBalance.text = "${balance.currency.symbol}${balance.value}"
+        expenseCurrentBalance.text = "${balance().currency.symbol}${balance().value}"
         expenseOriginalBalance.text = "/ ${total.currency.symbol}${total.value}"
         val newMax = (total.value * 100.toBigDecimal()).toInt()
-        val newProgress = (balance.value * 100.toBigDecimal()).toInt()
+        val newProgress = (balance().value * 100.toBigDecimal()).toInt()
         ObjectAnimator.ofInt(expenseProgress, "max", expenseProgress.max, newMax)
             .also { it.duration = 250 }.start()
         ObjectAnimator.ofInt(expenseProgress, "progress", expenseProgress.progress, newProgress)
